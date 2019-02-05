@@ -1,3 +1,7 @@
+# Demonstration
+
+One can perform the following steps from a single terminal.
+
 ## Setup
 
 Start Vault:
