@@ -23,7 +23,11 @@ kubectl create serviceaccount vault-auth --namespace="ns1"
 kubectl create serviceaccount vault-auth --namespace="ns2"
 
 kubectl apply --filename clusterRoleBinding_mod.yml 
+```
 
+### Back to Vault
+
+```
 # Set VAULT_SA_NAME to the service account you created earlier
 export VAULT_SA_NAME=$(kubectl get sa vault-auth -o jsonpath="{.secrets[*]['name']}")
 
@@ -35,11 +39,7 @@ export SA_CA_CRT=$(kubectl get secret $VAULT_SA_NAME -o jsonpath="{.data['ca\.cr
 
 # Set K8S_HOST to minikube IP address
 export K8S_HOST=$(minikube ip)
-```
 
-### Back to Vault
-
-```
 export VAULT_ADDR=http://localhost:8200 
 vault login root
 
@@ -73,7 +73,7 @@ vault kv put kv/ns2/test my-value=s3cr3t
 
 ### Back to Kube
 
-```
+```bash
 kubectl run shell-demo --generator=run-pod/v1 --rm -i --tty --serviceaccount=vault-auth --image ubuntu:latest --env="VAULT_ADDR=http://$(ip route get 1 | awk '{print $NF;exit}'):8200" --namespace="ns1"
 
 # In shell
