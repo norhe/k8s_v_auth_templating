@@ -49,8 +49,6 @@ vault login root
 
 vault audit enable file file_path=/tmp/vault.log
 
-vault policy write read_ns read_ns.hcl
-
 vault auth enable kubernetes
 
 # Notice the env vars.  These were set in the previous section.  Make sure they are present if you have multiple terminals open
@@ -72,6 +70,17 @@ vault kv put kv/ns2 my-value=s3cr3t
 vault kv put kv/default/test my-value=s3cr3t
 vault kv put kv/ns1/test my-value=s3cr3t
 vault kv put kv/ns2/test my-value=s3cr3t
+
+KUB_MOUNT_ACCESSOR=$(vault auth list -format=json | jq -r '.["kubernetes/"].accessor') && echo $KUB_MOUNT_ACCESSOR
+
+tee -a "read_ns.hcl" <<EOF
+
+path "kv/{{identity.entity.aliases.$KUB_MOUNT_ACCESSOR.metadata.service_account_namespace}}/*" {
+  capabilities = ["create", "update", "read", "delete", "list"]
+}
+EOF
+
+vault policy write read_ns read_ns.hcl
 
 ```
 
@@ -101,15 +110,14 @@ ENTITY_ID=$(curl --header "X-Vault-Token: $TOKEN" $VAULT_ADDR/v1/auth/token/look
 
 K8S_NAMESPACE=$(curl --header "X-Vault-Token: $TOKEN" $VAULT_ADDR/v1/auth/token/lookup-self |jq .data.meta.service_account_namespace |tr -d '"') && echo $K8S_NAMESPACE
 
-# test entity and namespace policies.  Both of these should work given the policy,
-# but only the entity_id does
 vault kv put kv/$ENTITY_ID/test my=val
 vault kv put kv/$K8S_NAMESPACE/test my=val
 
 vault kv get kv/$ENTITY_ID/test
-# test a get as well.  Should also work, but fails
+
 vault kv get kv/$K8S_NAMESPACE/test
 
 META=$(curl --header "X-Vault-Token: $TOKEN" $VAULT_ADDR/v1/auth/token/lookup-self |jq .data.meta)
 
 echo "$(tput setaf 3)My Metadata: $(tput setaf 3)" && echo $META |jq
+
