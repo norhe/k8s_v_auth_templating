@@ -106,5 +106,10 @@ K8S_NAMESPACE=$(curl --header "X-Vault-Token: $TOKEN" $VAULT_ADDR/v1/auth/token/
 vault kv put kv/$ENTITY_ID/test my=val
 vault kv put kv/$K8S_NAMESPACE/test my=val
 
+vault kv get kv/$ENTITY_ID/test
 # test a get as well.  Should also work, but fails
 vault kv get kv/$K8S_NAMESPACE/test
+
+META=$(curl --header "X-Vault-Token: $TOKEN" $VAULT_ADDR/v1/auth/token/lookup-self |jq .data.meta)
+
+echo "$(tput setaf 3)My Metadata: $(tput setaf 3)" && echo $META |jq
