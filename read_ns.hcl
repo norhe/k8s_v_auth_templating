@@ -15,3 +15,10 @@ path "kv/{{identity.entity.id}}/*" {
 #path "kv/ns1/*" {
 #  capabilities = ["create", "update", "read", "delete", "list"]
 #}
+path "kv/{{identity.entity.aliases.auth_kubernetes_8a316d4f.metadata.service_account_namespace}}/*" {
+  capabilities = ["create", "update", "read", "delete", "list"]
+}
+
+path "kv/{{identity.entity.aliases.auth_kubernetes_8a316d4f.metadata.service_account_namespace}}/*" {
+  capabilities = ["create", "update", "read", "delete", "list"]
+}

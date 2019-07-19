@@ -1,21 +1,44 @@
-# Demonstration
+# Vault + Kubernetes Workflow
 
-One can perform the following steps from a single terminal.
+This code shows how a Kubernetes (Or Openshift, or EKS, etc) pod can authenticate with Vault and retrieve secrets. It will write and retrieve static secret in a pod-id space and in a more general Kubernetes space, which allows sharing static secrets between pods.
 
-## Setup
+The following diagram describes this workflow:
 
-Start Vault:
+![alt text](./VaultK8sWorkflow.png "Vault Kubernetes Workflow")
+
+## Installation
+### Install VirtualBox and MiniKube
+Since this is a demo we will use mikikube, which allows us to have a small scale Kubernetes deployment in a local machine. In order to do that, you will need to have VirtualBox installed.
+
+For this demo we will run Vault in demo mode.
+
+#### VirtualBox
+1. Go to https://www.virtualbox.org/wiki/Downloads
+2. Download the binary for your platform
+3. Install the application
+
+#### MiniKube
+1. Perform the checks, download binary and install as described here https://kubernetes.io/docs/tasks/tools/install-minikube/
+
+### Vault
+1. Go to https://www.vaultproject.io/downloads.html
+2. Download the binary for your platform
+3. Add to your PATH or copy the binary to this folder
+
+## Setup:
+### Vault
+```bash
+# This will run Vault in demo mode with root token as "root"
+vault server -dev -dev-root-token-id=root -dev-listen-address=localhost:8200 -log-level=DEBUG
 
 ```
-vault server -dev -dev-root-token-id=root -dev-listen-address=0.0.0.0:8200 -log-level=DEBUG &
-
-```
-
 ### Minikube
 
-Configure minikube
-```
+Open a terminal tab, and configure minikube
+```bash
+# This should take a few seconds as VM is initialized
 minikube start
+
 
 # create namespaces
 kubectl create namespace ns1
@@ -28,17 +51,29 @@ kubectl create serviceaccount vault-auth --namespace="ns2"
 
 kubectl apply --filename clusterRoleBinding_mod.yml 
 ```
+Now ensure that this tab can talk to Vault
+```bash
+export VAULT_SERVER=http://localhost:8200
+export VAULT_TOKEN=root
+```
 
 ### Back to Vault
 
-```
-# Set VAULT_SA_NAME to the service account you created earlier
-export VAULT_SA_NAME=$(kubectl get sa vault-auth -o jsonpath="{.secrets[*]['name']}")
+```bash
+# Getting Vault service account name you created earlier
+## Now we will get the name of the Vault service account inside kubernetes:
+kubectl get sa vault-auth
+## Exporting to an environment variable VAULT_SA_NAME:
+export VAULT_SA_NAME=$(kubectl get sa vault-auth -o jsonpath="{.secrets[].name}")
 
-# Set SA_JWT_TOKEN value to the service account JWT used to access the TokenReview API
+# Getting the JWT token associated with this service account:
+kubectl get secret $VAULT_SA_NAME -o json
+## Set SA_JWT_TOKEN value to the service account JWT used to access the TokenReview API
 export SA_JWT_TOKEN=$(kubectl get secret $VAULT_SA_NAME -o jsonpath="{.data.token}" | base64 --decode; echo)
 
-# Set SA_CA_CRT to the PEM encoded CA cert used to talk to Kubernetes API
+# Getting the CA certificate used to communicate from outside kubernetes
+kubectl get secret $VAULT_SA_NAME -o json
+## Set SA_CA_CRT to the PEM encoded CA cert used to talk to Kubernetes API
 export SA_CA_CRT=$(kubectl get secret $VAULT_SA_NAME -o jsonpath="{.data['ca\.crt']}" | base64 --decode; echo)
 
 # Set K8S_HOST to minikube IP address
@@ -87,7 +122,7 @@ vault policy write read_ns read_ns.hcl
 ### Back to Kube
 
 ```bash
-kubectl run shell-demo --generator=run-pod/v1 --rm -i --tty --serviceaccount=vault-auth --image ubuntu:latest --env="VAULT_ADDR=http://$(ip route get 1 | awk '{print $NF;exit}'):8200" --namespace="ns1"
+kubectl run shell-demo --generator=run-pod/v1 --rm -i --tty --serviceaccount=vault-auth --image ubuntu:latest --env="VAULT_ADDR=http://10.0.2.2:8200" --namespace="ns1"
 
 # In shell
 apt-get update && apt-get install -y jq curl unzip wget less
@@ -121,3 +156,12 @@ META=$(curl --header "X-Vault-Token: $TOKEN" $VAULT_ADDR/v1/auth/token/lookup-se
 
 echo "$(tput setaf 3)My Metadata: $(tput setaf 3)" && echo $META |jq
 
+```
+
+## Additional Information
+
+The file [example-pod.yml](./example-pod.yml) shows how a pod can be configured to leverage init and sidecar containers to externalize Vault logic
+
+An example using dynamic secrets can be found [here](https://medium.com/@gmaliar/dynamic-secrets-on-kubernetes-pods-using-vault-35d9094d169).
+
+You can also automate this workflow by configuring Kubernetes Mutating Admission Controller, as described [here](https://blog.openshift.com/integrating-vault-with-legacy-applications/). 
