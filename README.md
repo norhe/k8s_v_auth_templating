@@ -87,7 +87,13 @@ vault policy write read_ns read_ns.hcl
 ### Back to Kube
 
 ```bash
+# Spin up a basic container
+
+# For MacOS
 kubectl run shell-demo --generator=run-pod/v1 --rm -i --tty --serviceaccount=vault-auth --image ubuntu:latest --env="VAULT_ADDR=http://$(ip route get 1 | awk '{print $NF;exit}'):8200" --namespace="ns1"
+
+# For Ubuntu
+kubectl run shell-demo --generator=run-pod/v1 --rm -i --tty --serviceaccount=vault-auth --image ubuntu:latest --env="VAULT_ADDR=http://$(ip route get 1 | awk '{print $7;exit}'):8200" --namespace="ns1"
 
 # In shell
 apt-get update && apt-get install -y jq curl unzip wget less
